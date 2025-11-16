@@ -130,4 +130,23 @@ public class UserService {
         return new ResponseEntity<>(user.getToken(), HttpStatus.OK);
     }
 
+    public ResponseEntity<Integer> getUserHelped(String userId) {
+        User user = userRepo.findById(userId).orElse(null);
+        if(user == null) return new ResponseEntity<>(0,HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(user.getHelped(), HttpStatus.OK);
+    }
+
+    public ResponseEntity<Integer> incHelped(String userId) {
+        User user = userRepo.findById(userId).orElse(null);
+        if(user == null) return new ResponseEntity<>(0,HttpStatus.NOT_FOUND);
+        user.setHelped(user.getHelped()+1);
+        return new ResponseEntity<>(user.getHelped(), HttpStatus.OK);
+    }
+
+    public ResponseEntity<Integer> changeHelped(String userId, int newNumber) {
+        User user = userRepo.findById(userId).orElse(null);
+        if(user == null) return new ResponseEntity<>(0,HttpStatus.NOT_FOUND);
+        user.setHelped(newNumber);
+        return new ResponseEntity<>(user.getHelped(), HttpStatus.OK);
+    }
 }

@@ -55,6 +55,28 @@ public class UserController {
         return userService.changeName(userId, newName);
     }
 
+    @GetMapping("/{userId}/helped")
+    public ResponseEntity<?> getUserHelped(
+            @PathVariable String userId
+    ){
+        return userService.getUserHelped(userId);
+    }
+
+    @PutMapping("/{userId}/inchelped")
+    public ResponseEntity<?> incrHelped(
+            @PathVariable String userId
+    ){
+        return userService.incHelped(userId);
+    }
+
+    @PutMapping("/{userId}/changehelped")
+    public ResponseEntity<?> changeHelped(
+            @PathVariable String userId,
+            @RequestParam int newNumber
+    ){
+        return userService.changeHelped(userId, newNumber);
+    }
+
     @PutMapping("/{userId}/modify")
     public ResponseEntity<?> modify(
             @RequestBody User user,

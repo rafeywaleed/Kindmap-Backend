@@ -13,7 +13,7 @@ COPY src /app/src
 RUN mvn clean package -DskipTests
 
 # Stage 2: Run the application
-FROM openjdk:17-jdk
+FROM eclipse-temurin:17-jdk
 
 # Set the working directory
 WORKDIR /app
