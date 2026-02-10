@@ -49,18 +49,33 @@ public class PinService {
         return pinRepo.findById(pinId).orElse(null);
     }
 
-    public void addPin(Pin pin) {
-        if(pin.getDetails().isEmpty()) pin.setDetails("(none)");
-        if(pin.getNote().isEmpty()) pin.setNote("(none)");
+    public void addPin(PinDTO pinDTO) {
+        if(pinDTO.getDetails() == null || pinDTO.getDetails().isEmpty())
+            pinDTO.setDetails("(none)");
+        if(pinDTO.getNote() == null || pinDTO.getNote().isEmpty())
+            pinDTO.setNote("(none)");
 
-        String gridId = pin.getGrid().getGridId();
+//        String gridId = pin.getGrid().getGridId();
+        String gridId = pinDTO.getGridId();
         Grid grid = gridRepo.findById(gridId)
                         .orElseGet(() ->{
                             Grid newGrid = new Grid();
                             newGrid.setGridId(gridId);
                             return gridRepo.save(newGrid);
                         });
+        Pin pin = new Pin();
+        pin.setPinId(pinDTO.getPinId());
         pin.setGrid(grid);
+        pin.setNote(pinDTO.getNote());
+        pin.setDetails(pinDTO.getDetails());
+        pin.setLatitude(pinDTO.getLatitude());
+        pin.setLongitude(pinDTO.getLongitude());
+        pin.setTimer(pinDTO.getTimer());
+        pin.setCreatedAt(pinDTO.getCreatedAt());
+        pin.setImageBase64(pinDTO.getImageBase64());
+        pin.setCreatedBy(pinDTO.getCreatedBy());
+
+        System.out.println("Image base64 length: " + pin.getImageBase64().length());
 
         Pin savedPin = pinRepo.save(pin);
 

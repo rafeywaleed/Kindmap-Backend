@@ -32,7 +32,7 @@ public class PinController {
     }
 
     @PostMapping("/add")
-    public ResponseEntity<PinDTO> addPin(@RequestBody Pin pin){
+    public ResponseEntity<PinDTO> addPin(@RequestBody PinDTO pin){
         pinService.addPin(pin);
         return pinService.getPin(pin.getPinId());
     }
