@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/pin")
+@RequestMapping("/pins")
 
 public class PinController {
 
@@ -22,27 +22,26 @@ public class PinController {
 
     @GetMapping("/all")
     public ResponseEntity<List<PinDTO>> getAllPins(){
-        return new ResponseEntity<>(pinService.getAllPins(), HttpStatus.OK);
+        return ResponseEntity.ok(pinService.getAllPins());
     }
 
     @GetMapping("/{pinId}")
     public ResponseEntity<PinDTO> getPin(@PathVariable String pinId){
-        return pinService.getPin(pinId);
+        return pinService.getPin(pinId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
 
     }
 
     @PostMapping("/add")
     public ResponseEntity<PinDTO> addPin(@RequestBody PinDTO pin){
-        pinService.addPin(pin);
-        return pinService.getPin(pin.getPinId());
+        PinDTO created = pinService.addPin(pin);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @DeleteMapping("/delete/{pinId}")
     public ResponseEntity<Boolean> removePin(@PathVariable String pinId){
         pinService.removePin(pinId);
-
-        return pinService.searchPin(pinId) == null
-                ? new ResponseEntity<>(Boolean.TRUE, HttpStatus.OK)
-                : new ResponseEntity<>(Boolean.FALSE, HttpStatus.NO_CONTENT);
+        return ResponseEntity.noContent().build();
     }
 }

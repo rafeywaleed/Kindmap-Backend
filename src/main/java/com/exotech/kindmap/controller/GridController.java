@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/grid")
+@RequestMapping("/grids")
 public class GridController {
 
     @Autowired
@@ -26,17 +26,32 @@ public class GridController {
 
     @GetMapping("/all")
     public ResponseEntity<List<GridDTO>> getAllGrids(){
-        return new ResponseEntity<>(gridService.getAllGrids(), HttpStatus.OK);
+        return ResponseEntity.ok(gridService.getAllGrids());
+    }
+
+    @GetMapping("/{gridId}")
+    public ResponseEntity<GridDTO> getGrid(@PathVariable String gridId) {
+        return gridService.getGridById(gridId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{gridId}/pins")
     public ResponseEntity<List<PinDTO>> getPinsByGridId(@PathVariable String gridId){
-        return new ResponseEntity<>(gridService.getPinsById(gridId), HttpStatus.OK);
+        List<PinDTO> pins = gridService.getPinsById(gridId);
+        if (pins.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(pins);
     }
 
     @GetMapping("/{gridId}/users")
     public ResponseEntity<List<UserDTO>> getUsersByGridId(@PathVariable String gridId){
-        return new ResponseEntity<>(gridService.getUsersById(gridId), HttpStatus.OK);
+        List<UserDTO> users = gridService.getUsersById(gridId);
+        if (users.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(users);
     }
 
 }

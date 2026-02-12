@@ -10,11 +10,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class UserService {
 
     @Autowired
@@ -26,53 +29,59 @@ public class UserService {
     @Autowired
     private DTOServices dtoServices;
 
-    public User getUser(String userId) {
-        return userRepo.findById(userId).orElse(null);
+    public Optional<User> getUser(String userId) {
+        return userRepo.findByIdWithSubscriptions(userId);
     }
 
     public List<UserDTO> getAllUsers() {
-
         return userRepo
-                .findAll()
+                .findAllWithSubscriptions()
                 .stream()
                 .map(user -> dtoServices.convertToUserDTO(user))
                 .toList();
     }
 
-    public void addUser(User user) {
+    @Transactional
+    public UserDTO addUser(User user) {
         if(user.getAvatarIndex()==0) user.setAvatarIndex(1);
-        userRepo.save(user);
+        User savedUser = userRepo.save(user);
+        return dtoServices.convertToUserDTO(savedUser);
     }
 
-    public ResponseEntity<?> changeName(String userId, String newName) {
-        User user = getUser(userId);
-        if(user==null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    @Transactional
+    public UserDTO changeName(String userId, String newName) {
+        User user = userRepo.findByIdWithSubscriptions(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         user.setName(newName);
-        userRepo.save(user);
-        return new ResponseEntity<>(HttpStatus.OK);
+        return dtoServices.convertToUserDTO(user);
     }
 
-    public ResponseEntity<List<String>> getSubscribedTopics(String userId) {
-        User user = getUser(userId);
-        if(user==null || user.getSubscribedGridIds().isEmpty()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        return new ResponseEntity<>(stringListofGridId(user), HttpStatus.OK);
+    public List<String> getSubscribedTopics(String userId) {
+        User user = userRepo.findByIdWithSubscriptions(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return user.getSubscribedGridIds()
+                .stream()
+                .map(Grid :: getGridId)
+                .toList();
     }
 
-    public ResponseEntity<List<String>> unsubscribeTopic(String userId, String gridId) {
+    @Transactional
+    public List<String> unsubscribeFromGrid(String userId, String gridId) {
+        User user = userRepo.findByIdWithSubscriptions(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not Found"));
-
-        Grid grid = gridRepo.findById(gridId)
-                .orElseThrow(() -> new RuntimeException("Grid not Found"));
+        Grid grid = gridRepo.findByIdWithUsers(gridId)
+                .orElseThrow(() -> new RuntimeException("Grid not found"));
 
         user.getSubscribedGridIds().remove(grid);
         grid.getUsers().remove(user);
 
-        userRepo.save(user);
-        gridRepo.save(grid);
-
-        return new ResponseEntity<>(stringListofGridId(user), HttpStatus.OK);
+        return user
+                .getSubscribedGridIds()
+                .stream()
+                .map(Grid::getGridId)
+                .toList();
     }
 
     private List<String> stringListofGridId(User user) {
@@ -82,71 +91,74 @@ public class UserService {
                 .toList();
     }
 
-    public ResponseEntity<List<String>> subscribeUserToGrid(String userId, String gridId) {
+    @Transactional
+    public UserDTO subscribeUserToGrid(String userId, String gridId) {
+        User user = userRepo.findByIdWithSubscriptions(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Grid grid = gridRepo.findByIdWithUsers(gridId)
+                .orElseThrow(() -> new RuntimeException("Grid not found"));
 
-        User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not Found"));
+        if (!user.getSubscribedGridIds().contains(grid)) {
+            user.getSubscribedGridIds().add(grid);
+            grid.getUsers().add(user);
+        }
 
-        Grid grid = gridRepo.findById(gridId)
-                .orElseThrow(() -> new RuntimeException("Grid not Found"));
-
-        user.getSubscribedGridIds().add(grid);
-        grid.getUsers().add(user);
-
-        userRepo.save(user);
-        gridRepo.save(grid);
-
-        return new ResponseEntity<>(stringListofGridId(user), HttpStatus.OK);
+        return dtoServices.convertToUserDTO(user);
     }
 
+    @Transactional
     public int getAvatarIndex(String userId) {
-        User user = userRepo.findById(userId).orElse(null);
-        if(user == null) return 0;
-        if(user.getAvatarIndex() == 0) user.setAvatarIndex(1);
-        userRepo.save(user);
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (user.getAvatarIndex() == 0) {
+            user.setAvatarIndex(1);
+        }
         return user.getAvatarIndex();
     }
 
-    public ResponseEntity<Integer> changeAvatarIndex(String userId, int newAvatarIndex) {
-        User user = userRepo.findById(userId).orElse(null);
-        if(user==null || user.getAvatarIndex()==0) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-
+    @Transactional
+    public int changeAvatarIndex(String userId, int newAvatarIndex) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         user.setAvatarIndex(newAvatarIndex);
-        userRepo.save(user);
-        return new ResponseEntity<>(user.getAvatarIndex(), HttpStatus.OK);
+        return newAvatarIndex;
     }
 
-    public ResponseEntity<String> getToken(String userId) {
-        User user = userRepo.findById(userId).orElse(null);
-        if(user==null || user.getToken().isEmpty()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);;
-        return new ResponseEntity<>(user.getToken(), HttpStatus.OK);
+    @Transactional(readOnly = true)
+    public Optional<String> getToken(String userId) {
+        return userRepo.findById(userId)
+                .map(User::getToken)
+                .filter(token -> token != null && !token.isEmpty());
     }
 
-    public ResponseEntity<String> updateToken(String userId, String token) {
-        User user = userRepo.findById(userId).orElse(null);
-        if(user==null || user.getToken().isEmpty()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);;
+    @Transactional
+    public String updateToken(String userId, String token) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         user.setToken(token);
-        userRepo.save(user);
-        return new ResponseEntity<>(user.getToken(), HttpStatus.OK);
+        return token;
     }
 
-    public ResponseEntity<Integer> getUserHelped(String userId) {
-        User user = userRepo.findById(userId).orElse(null);
-        if(user == null) return new ResponseEntity<>(0,HttpStatus.NOT_FOUND);
-        return new ResponseEntity<>(user.getHelped(), HttpStatus.OK);
+    @Transactional(readOnly = true)
+    public int getUserHelped(String userId) {
+        return userRepo.findById(userId)
+                .map(User::getHelped)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    public ResponseEntity<Integer> incHelped(String userId) {
-        User user = userRepo.findById(userId).orElse(null);
-        if(user == null) return new ResponseEntity<>(0,HttpStatus.NOT_FOUND);
-        user.setHelped(user.getHelped()+1);
-        return new ResponseEntity<>(user.getHelped(), HttpStatus.OK);
+    @Transactional
+    public int incHelped(String userId) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setHelped(user.getHelped() + 1);
+        return user.getHelped();
     }
 
-    public ResponseEntity<Integer> changeHelped(String userId, int newNumber) {
-        User user = userRepo.findById(userId).orElse(null);
-        if(user == null) return new ResponseEntity<>(0,HttpStatus.NOT_FOUND);
+    @Transactional
+    public int changeHelped(String userId, int newNumber) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         user.setHelped(newNumber);
-        return new ResponseEntity<>(user.getHelped(), HttpStatus.OK);
+        return newNumber;
     }
 }

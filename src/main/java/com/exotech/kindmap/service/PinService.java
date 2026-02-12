@@ -9,10 +9,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class PinService {
 
     @Autowired
@@ -27,35 +30,44 @@ public class PinService {
 
     public List<PinDTO> getAllPins() {
         return pinRepo
-                .findAll()
+                .findAllWithGrid()
                 .stream()
                 .map(pin -> dtoServices.convertToPinDTO(pin))
                 .toList();
     }
 
-    public ResponseEntity<PinDTO> getPin(String pinId) {
-        Pin pin =  searchPin(pinId);
+//    public ResponseEntity<PinDTO> getPin(String pinId) {
+//        Pin pin =  searchPin(pinId);
+//
+//        return pin == null
+//                ? new ResponseEntity<>(HttpStatus.NO_CONTENT)
+//                : new ResponseEntity<>(dtoServices.convertToPinDTO(pin), HttpStatus.OK);
+//    }
 
-        return pin == null
-                ? new ResponseEntity<>(HttpStatus.NO_CONTENT)
-                : new ResponseEntity<>(dtoServices.convertToPinDTO(pin), HttpStatus.OK);
+    public Optional<PinDTO> getPin(String pinId) {
+        return pinRepo
+                .findByIdWithGrid(pinId)
+                .map(pin -> dtoServices.convertToPinDTO(pin));
     }
 
-    public Pin searchPin(String pinId){
-//        Pin pin = pinRepo.findById(pinId).orElse(null);
-//        return pin != null
-//                ? dtoServices.convertToPinDTO(pin)
-//                : new PinDTO();
-        return pinRepo.findById(pinId).orElse(null);
+    public Optional<Pin> findPinById(String pinId) {
+        return pinRepo.findByIdWithGrid(pinId);
     }
 
-    public void addPin(PinDTO pinDTO) {
+//    public Pin searchPin(String pinId){
+////        Pin pin = pinRepo.findById(pinId).orElse(null);
+////        return pin != null
+////                ? dtoServices.convertToPinDTO(pin)
+////                : new PinDTO();
+//        return pinRepo.findById(pinId).orElse(null);
+//    }
+
+    public PinDTO addPin(PinDTO pinDTO) {
         if(pinDTO.getDetails() == null || pinDTO.getDetails().isEmpty())
             pinDTO.setDetails("(none)");
         if(pinDTO.getNote() == null || pinDTO.getNote().isEmpty())
             pinDTO.setNote("(none)");
 
-//        String gridId = pin.getGrid().getGridId();
         String gridId = pinDTO.getGridId();
         Grid grid = gridRepo.findById(gridId)
                         .orElseGet(() ->{
@@ -75,14 +87,15 @@ public class PinService {
         pin.setImageBase64(pinDTO.getImageBase64());
         pin.setCreatedBy(pinDTO.getCreatedBy());
 
-        System.out.println("Image base64 length: " + pin.getImageBase64().length());
+//        System.out.println("Image base64 length: " + pin.getImageBase64().length());
 
         Pin savedPin = pinRepo.save(pin);
 
         grid.getPins().add(savedPin);
-        gridRepo.save(grid);
+        return dtoServices.convertToPinDTO(savedPin);
     }
 
+    @Transactional
     public void removePin(String pinId) {
         pinRepo.deleteById(pinId);
     }

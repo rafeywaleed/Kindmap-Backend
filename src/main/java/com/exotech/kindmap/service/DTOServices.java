@@ -16,7 +16,11 @@ public class DTOServices {
     public PinDTO convertToPinDTO(Pin pin) {
         PinDTO dto = new PinDTO();
         dto.setPinId(pin.getPinId());
-        dto.setGridId(pin.getGrid().getGridId());
+
+        if (pin.getGrid() != null) {
+            dto.setGridId(pin.getGrid().getGridId());
+        }
+
         dto.setCreatedAt(pin.getCreatedAt());
         dto.setDetails(pin.getDetails());
         dto.setNote(pin.getNote());
@@ -43,6 +47,7 @@ public class DTOServices {
                 .toList();
 
         dto.setSubscribedGridIds(gridIds);
+        dto.setToken(user.getToken());
         return dto;
     }
 
@@ -53,7 +58,7 @@ public class DTOServices {
 
         List<PinDTO> pinDTOs = grid.getPins()
                 .stream()
-                .map(this::convertToPinDTO) // assuming method is in same class
+                .map(this::convertToPinDTO)
                 .toList();
 
         List<String> userIds = grid.getUsers()
