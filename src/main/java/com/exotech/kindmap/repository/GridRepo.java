@@ -15,20 +15,12 @@ import java.util.Optional;
 public interface GridRepo extends JpaRepository<Grid, String> {
 
     @Query("SELECT DISTINCT g FROM Grid g " +
-            "LEFT JOIN FETCH g.pins " +
-            "LEFT JOIN FETCH g.users")
-    List<Grid> findAllWithPinsAndUsers();
+            "LEFT JOIN FETCH g.pins")
+    List<Grid> findAllWithPins();
 
     @Query("SELECT DISTINCT g FROM Grid g " +
-            "LEFT JOIN FETCH g.pins " +
-            "LEFT JOIN FETCH g.users")
-    Page<Grid> findAllWithPinsAndUsers(Pageable pageable);
-
-    @Query("SELECT DISTINCT g FROM Grid g " +
-            "LEFT JOIN FETCH g.pins " +
-            "LEFT JOIN FETCH g.users " +
-            "WHERE g.gridId = :gridId")
-    Optional<Grid> findByIdWithPinsAndUsers(@Param("gridId") String gridId);
+            "LEFT JOIN FETCH g.pins")
+    Page<Grid> findAllWithPins(Pageable pageable);
 
     @Query("SELECT DISTINCT g FROM Grid g " +
             "LEFT JOIN FETCH g.pins " +
@@ -40,6 +32,10 @@ public interface GridRepo extends JpaRepository<Grid, String> {
             "WHERE g.gridId = :gridId")
     Optional<Grid> findByIdWithUsers(@Param("gridId") String gridId);
 
+    @Query("SELECT DISTINCT g FROM Grid g " +
+            "LEFT JOIN FETCH g.pins " +
+            "WHERE g.gridId = :gridId")
+    Optional<Grid> findByIdForDetail(@Param("gridId") String gridId);
 
     @Query("SELECT DISTINCT g FROM Grid g " +
             "WHERE LOWER(g.gridId) LIKE LOWER(CONCAT('%', :search, '%'))")

@@ -48,11 +48,14 @@ public interface PinRepo extends JpaRepository<Pin, String> {
     @Query("SELECT COUNT(p) FROM Pin p WHERE p.details = '(none)' OR p.details IS NULL")
     long countPinsWithoutDetails();
 
-    @Query("SELECT COUNT(p) FROM Pin p WHERE p.createdAt >= CURRENT_DATE - 1")
+    @Query(value = "SELECT COUNT(*) FROM pins WHERE created_at >= NOW() - INTERVAL '1 day'", nativeQuery = true)
     long countPinsLast24Hours();
 
-    @Query("SELECT COUNT(p) FROM Pin p WHERE p.createdAt >= CURRENT_DATE - 7")
+    @Query(value = "SELECT COUNT(*) FROM pins WHERE created_at >= NOW() - INTERVAL '7 days'", nativeQuery = true)
     long countPinsLast7Days();
+
+    @Query(value = "SELECT COUNT(*) FROM pins WHERE created_at >= NOW() - INTERVAL '30 days'", nativeQuery = true)
+    long countPinsLast30Days();
 
     @Query("SELECT p FROM Pin p ORDER BY p.createdAt DESC")
     List<Pin> findRecentPins(Pageable pageable);

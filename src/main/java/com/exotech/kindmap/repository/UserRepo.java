@@ -48,10 +48,10 @@ public interface UserRepo extends JpaRepository<User, String> {
     @Query("SELECT u FROM User u ORDER BY u.joinedDate DESC")
     List<User> findRecentUsers(Pageable pageable);
 
-    @Query("SELECT COUNT(u) FROM User u WHERE u.joinedDate >= CURRENT_DATE - 1")
+    @Query(value = "SELECT COUNT(*) FROM users WHERE joined_date >= NOW() - INTERVAL '1 day'", nativeQuery = true)
     long countUsersJoinedLast24Hours();
 
-    @Query("SELECT COUNT(u) FROM User u WHERE u.joinedDate >= CURRENT_DATE - 7")
+    @Query(value = "SELECT COUNT(*) FROM users WHERE joined_date >= NOW() - INTERVAL '7 days'", nativeQuery = true)
     long countUsersJoinedLast7Days();
 
     @Query(value = "SELECT pg_size_pretty(pg_total_relation_size('users'))", nativeQuery = true)

@@ -51,10 +51,10 @@ public class UserService {
         if(userDTO.getAvatarIndex()==0) userDTO.setAvatarIndex(1);
         User user = new User();
         user.setUserId(userDTO.getUserId());
-        user.setName(user.getName());
+        user.setName(userDTO.getName());
         user.setAvatarIndex(userDTO.getAvatarIndex());
         user.setToken(userDTO.getToken());
-        user.setEmail(user.getEmail());
+        user.setEmail(userDTO.getEmail());
         user.setHelped(userDTO.getHelped());
         user.setJoinedDate(userDTO.getJoinedDate());
         User savedUser = userRepo.save(user);
@@ -160,11 +160,36 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         String oldToken = user.getToken();
+
         user.setToken(newToken);
+
+        if (oldToken != null && !oldToken.isEmpty() && !oldToken.equals(newToken)) {
+            log.info("🔄 Cleaning up old token for user {}: {} -> {}",
+                    userId, maskToken(oldToken), maskToken(newToken));
+
+            boolean unsubscribedGlobal = fcmService.unsubscribeFromTopic(oldToken, "allUsers");
+            if (unsubscribedGlobal) {
+                log.info("✅ Unsubscribed old token from allUsers topic");
+            }
+
+            List<String> subscribedGrids = user.getSubscribedGridIds()
+                    .stream()
+                    .map(Grid::getGridId)
+                    .toList();
+
+            int unsubscribedCount = 0;
+            for (String gridId : subscribedGrids) {
+                boolean success = fcmService.unsubscribeFromTopic(oldToken, gridId);
+                if (success) unsubscribedCount++;
+            }
+
+            log.info("✅ Unsubscribed old token from {}/{} grid topics",
+                    unsubscribedCount, subscribedGrids.size());
+        }
 
         boolean allUsersSuccess = fcmService.subscribeToTopic(newToken, "allUsers");
         if (allUsersSuccess) {
-            log.info("✅ User {} subscribed to allUsers topic", userId);
+            log.info("✅ User {} subscribed new token to allUsers topic", userId);
         }
 
         List<String> subscribedGrids = user.getSubscribedGridIds()
@@ -178,11 +203,16 @@ public class UserService {
             if (success) successCount++;
         }
 
-        log.info("✅ User {} updated token. Subscribed to {}/{} grids",
+        log.info("✅ User {} updated token. Subscribed new token to {}/{} grids",
                 userId, successCount, subscribedGrids.size());
 
         userRepo.save(user);
         return newToken;
+    }
+
+    private String maskToken(String token) {
+        if (token == null || token.length() < 8) return "***";
+        return token.substring(0, 4) + "..." + token.substring(token.length() - 4);
     }
 
     private List<String> stringListofGridId(User user) {

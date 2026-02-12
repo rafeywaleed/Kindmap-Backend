@@ -24,7 +24,7 @@ public class GridService {
 
     public List<GridDTO> getAllGrids() {
         return gridRepo
-                .findAllWithPinsAndUsers()
+                .findAllWithPins()
                 .stream()
                 .map(grid -> dtoServices.convertToGridDTO(grid))
                 .toList();
@@ -69,7 +69,7 @@ public class GridService {
 
     public Optional<GridDTO> getGridById(String gridId) {
         return gridRepo
-                .findByIdWithPinsAndUsers(gridId)
+                .findByIdWithPins(gridId)
                 .map(grid -> dtoServices.convertToGridDTO(grid));
     }
 
