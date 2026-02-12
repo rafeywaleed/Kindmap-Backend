@@ -3,9 +3,6 @@ package com.exotech.kindmap.service;
 import com.exotech.kindmap.dto.GridDTO;
 import com.exotech.kindmap.dto.PinDTO;
 import com.exotech.kindmap.dto.UserDTO;
-import com.exotech.kindmap.model.Grid;
-import com.exotech.kindmap.model.Pin;
-import com.exotech.kindmap.model.User;
 import com.exotech.kindmap.repository.GridRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -36,7 +33,7 @@ public class GridService {
     public List<PinDTO> getPinsById(String gridId) {
 
         return gridRepo
-                .findByIdWithPinsAndUsers(gridId)
+                .findByIdWithPins(gridId)
                 .map(grid -> grid.getPins()
                         .stream()
                         .map(pin -> dtoServices.convertToPinDTO(pin))
@@ -54,7 +51,7 @@ public class GridService {
 
     public List<UserDTO> getUsersById(String gridId) {
         return gridRepo
-                .findByIdWithPinsAndUsers(gridId)
+                .findByIdWithUsers(gridId)
                 .map(grid -> grid.getUsers()
                         .stream()
                         .map(user -> dtoServices.convertToUserDTO(user))

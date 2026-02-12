@@ -6,9 +6,9 @@ import com.exotech.kindmap.model.Grid;
 import com.exotech.kindmap.model.User;
 import com.exotech.kindmap.repository.GridRepo;
 import com.exotech.kindmap.repository.UserRepo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +29,11 @@ public class UserService {
     @Autowired
     private DTOServices dtoServices;
 
+    @Autowired
+    private FCMService fcmService;
+
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
+
     public Optional<User> getUser(String userId) {
         return userRepo.findByIdWithSubscriptions(userId);
     }
@@ -42,9 +47,28 @@ public class UserService {
     }
 
     @Transactional
-    public UserDTO addUser(User user) {
-        if(user.getAvatarIndex()==0) user.setAvatarIndex(1);
+    public UserDTO addUser(UserDTO userDTO) {
+        if(userDTO.getAvatarIndex()==0) userDTO.setAvatarIndex(1);
+        User user = new User();
+        user.setUserId(userDTO.getUserId());
+        user.setName(user.getName());
+        user.setAvatarIndex(userDTO.getAvatarIndex());
+        user.setToken(userDTO.getToken());
+        user.setEmail(user.getEmail());
+        user.setHelped(userDTO.getHelped());
+        user.setJoinedDate(userDTO.getJoinedDate());
         User savedUser = userRepo.save(user);
+
+        String token = savedUser.getToken();
+        if (token != null && !token.isEmpty()) {
+            boolean success = fcmService.subscribeToTopic(token, "allUsers");
+            if (success) {
+                log.info("✅ New user {} auto-subscribed to allUsers topic", user.getUserId());
+            } else {
+                log.warn("⚠️ Failed to auto-subscribe user {} to allUsers topic", user.getUserId());
+            }
+        }
+
         return dtoServices.convertToUserDTO(savedUser);
     }
 
@@ -67,31 +91,6 @@ public class UserService {
     }
 
     @Transactional
-    public List<String> unsubscribeFromGrid(String userId, String gridId) {
-        User user = userRepo.findByIdWithSubscriptions(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Grid grid = gridRepo.findByIdWithUsers(gridId)
-                .orElseThrow(() -> new RuntimeException("Grid not found"));
-
-        user.getSubscribedGridIds().remove(grid);
-        grid.getUsers().remove(user);
-
-        return user
-                .getSubscribedGridIds()
-                .stream()
-                .map(Grid::getGridId)
-                .toList();
-    }
-
-    private List<String> stringListofGridId(User user) {
-        return user.getSubscribedGridIds()
-                .stream()
-                .map(grid -> grid.getGridId())
-                .toList();
-    }
-
-    @Transactional
     public UserDTO subscribeUserToGrid(String userId, String gridId) {
         User user = userRepo.findByIdWithSubscriptions(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -101,9 +100,96 @@ public class UserService {
         if (!user.getSubscribedGridIds().contains(grid)) {
             user.getSubscribedGridIds().add(grid);
             grid.getUsers().add(user);
+
+            String token = user.getToken();
+            if (token != null && !token.isEmpty()) {
+                boolean success = fcmService.subscribeToTopic(token, gridId);
+                if (!success) {
+                    log.warn("⚠️ Firebase subscription failed for user {} to grid {}", userId, gridId);
+                }
+            } else {
+                log.info("User {} has no FCM token - skipping Firebase subscription", userId);
+            }
+
+            userRepo.save(user);
         }
 
         return dtoServices.convertToUserDTO(user);
+    }
+
+    @Transactional
+    public List<String> unsubscribeFromGrid(String userId, String gridId) {
+        User user = userRepo.findByIdWithSubscriptions(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Grid grid = gridRepo.findByIdWithUsers(gridId)
+                .orElseThrow(() -> new RuntimeException("Grid not found"));
+
+        boolean removed = user.getSubscribedGridIds().remove(grid);
+        if (removed) {
+            grid.getUsers().remove(user);
+
+            String token = user.getToken();
+            if (token != null && !token.isEmpty()) {
+                boolean success = fcmService.unsubscribeFromTopic(token, gridId);
+                if (!success) {
+                    log.warn("⚠️ Firebase unsubscription failed for user {} from grid {}", userId, gridId);
+                }
+            }
+
+            userRepo.save(user);
+        }
+
+        return user
+                .getSubscribedGridIds()
+                .stream()
+                .map(Grid::getGridId)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<String> getToken(String userId) {
+        return userRepo.findById(userId)
+                .map(User::getToken)
+                .filter(token -> token != null && !token.isEmpty());
+    }
+
+    @Transactional
+    public String updateToken(String userId, String newToken) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String oldToken = user.getToken();
+        user.setToken(newToken);
+
+        boolean allUsersSuccess = fcmService.subscribeToTopic(newToken, "allUsers");
+        if (allUsersSuccess) {
+            log.info("✅ User {} subscribed to allUsers topic", userId);
+        }
+
+        List<String> subscribedGrids = user.getSubscribedGridIds()
+                .stream()
+                .map(Grid::getGridId)
+                .toList();
+
+        int successCount = 0;
+        for (String gridId : subscribedGrids) {
+            boolean success = fcmService.subscribeToTopic(newToken, gridId);
+            if (success) successCount++;
+        }
+
+        log.info("✅ User {} updated token. Subscribed to {}/{} grids",
+                userId, successCount, subscribedGrids.size());
+
+        userRepo.save(user);
+        return newToken;
+    }
+
+    private List<String> stringListofGridId(User user) {
+        return user.getSubscribedGridIds()
+                .stream()
+                .map(grid -> grid.getGridId())
+                .toList();
     }
 
     @Transactional
@@ -122,21 +208,6 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setAvatarIndex(newAvatarIndex);
         return newAvatarIndex;
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<String> getToken(String userId) {
-        return userRepo.findById(userId)
-                .map(User::getToken)
-                .filter(token -> token != null && !token.isEmpty());
-    }
-
-    @Transactional
-    public String updateToken(String userId, String token) {
-        User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        user.setToken(token);
-        return token;
     }
 
     @Transactional(readOnly = true)

@@ -3,12 +3,10 @@ package com.exotech.kindmap.controller;
 import com.exotech.kindmap.dto.GridDTO;
 import com.exotech.kindmap.dto.PinDTO;
 import com.exotech.kindmap.dto.UserDTO;
-import com.exotech.kindmap.model.Grid;
-import com.exotech.kindmap.model.Pin;
-import com.exotech.kindmap.model.User;
+
 import com.exotech.kindmap.service.GridService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

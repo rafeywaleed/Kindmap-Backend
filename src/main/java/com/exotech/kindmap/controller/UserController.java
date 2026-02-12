@@ -36,7 +36,7 @@ public class UserController {
 
 
     @PostMapping
-    public ResponseEntity<UserDTO> addUser(@RequestBody User user) {
+    public ResponseEntity<UserDTO> addUser(@RequestBody UserDTO user) {
         if (userService.getUser(user.getUserId()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
@@ -44,12 +44,12 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PatchMapping("/{userId}/name")
+    @PostMapping("/{userId}/name")
     public ResponseEntity<UserDTO> changeName(
             @PathVariable String userId,
-            @RequestBody NameChangeRequest request) {
+            @RequestParam String newName) {
         try {
-            UserDTO updated = userService.changeName(userId, request.getName());
+            UserDTO updated = userService.changeName(userId, newName);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -74,33 +74,22 @@ public class UserController {
         }
     }
 
-    @PutMapping("/{userId}/helped")
-    public ResponseEntity<Integer> changeHelped(
-            @PathVariable String userId,
-            @RequestBody HelpedChangeRequest request) {
-        try {
-            return ResponseEntity.ok(userService.changeHelped(userId, request.getHelped()));
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @PutMapping("/{userId}")
-    public ResponseEntity<UserDTO> modifyUser(
-            @RequestBody User user,
-            @PathVariable String userId) {
-
-        if (!user.getUserId().equals(userId)) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (userService.getUser(userId).isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        UserDTO updated = userService.addUser(user);
-        return ResponseEntity.ok(updated);
-    }
+//    @PutMapping("/{userId}")
+//    public ResponseEntity<UserDTO> modifyUser(
+//            @RequestBody UserDTO user,
+//            @PathVariable String userId) {
+//
+//        if (!user.getUserId().equals(userId)) {
+//            return ResponseEntity.badRequest().build();
+//        }
+//
+//        if (userService.getUser(userId).isEmpty()) {
+//            return ResponseEntity.notFound().build();
+//        }
+//
+//        UserDTO updated = userService.addUser(user);
+//        return ResponseEntity.ok(updated);
+//    }
 
     @GetMapping("/{userId}/subscriptions")
     public ResponseEntity<List<String>> getSubscribedGrids(@PathVariable String userId) {
@@ -148,10 +137,10 @@ public class UserController {
     @PutMapping("/{userId}/avatar")
     public ResponseEntity<Integer> changeAvatarIndex(
             @PathVariable String userId,
-            @RequestBody AvatarChangeRequest request) {
+            @RequestParam Integer avatarIndex) {
         try {
             return ResponseEntity.ok(
-                    userService.changeAvatarIndex(userId, request.getAvatarIndex())
+                    userService.changeAvatarIndex(userId, avatarIndex)
             );
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -170,35 +159,11 @@ public class UserController {
     @PutMapping("/{userId}/token")
     public ResponseEntity<String> updateToken(
             @PathVariable String userId,
-            @RequestBody TokenUpdateRequest request) {
+            @RequestParam String token) {
         try {
-            return ResponseEntity.ok(userService.updateToken(userId, request.getToken()));
+            return ResponseEntity.ok(userService.updateToken(userId, token));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
     }
-}
-
-class NameChangeRequest {
-    private String name;
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-}
-
-class HelpedChangeRequest {
-    private int helped;
-    public int getHelped() { return helped; }
-    public void setHelped(int helped) { this.helped = helped; }
-}
-
-class AvatarChangeRequest {
-    private int avatarIndex;
-    public int getAvatarIndex() { return avatarIndex; }
-    public void setAvatarIndex(int avatarIndex) { this.avatarIndex = avatarIndex; }
-}
-
-class TokenUpdateRequest {
-    private String token;
-    public String getToken() { return token; }
-    public void setToken(String token) { this.token = token; }
 }

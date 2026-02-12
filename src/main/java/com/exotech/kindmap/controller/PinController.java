@@ -1,13 +1,10 @@
 package com.exotech.kindmap.controller;
 
 import com.exotech.kindmap.dto.PinDTO;
-import com.exotech.kindmap.model.Pin;
 import com.exotech.kindmap.service.PinService;
-import org.hibernate.engine.spi.Resolution;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;

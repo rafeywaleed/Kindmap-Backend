@@ -5,9 +5,9 @@ import com.exotech.kindmap.model.Grid;
 import com.exotech.kindmap.model.Pin;
 import com.exotech.kindmap.repository.GridRepo;
 import com.exotech.kindmap.repository.PinRepo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +26,11 @@ public class PinService {
 
     @Autowired
     private DTOServices dtoServices;
+
+    @Autowired
+    private FCMService fcmService;
+
+    private static final Logger log = LoggerFactory.getLogger(PinService.class);
 
 
     public List<PinDTO> getAllPins() {
@@ -90,8 +95,17 @@ public class PinService {
 //        System.out.println("Image base64 length: " + pin.getImageBase64().length());
 
         Pin savedPin = pinRepo.save(pin);
-
         grid.getPins().add(savedPin);
+
+        try {
+            fcmService.sendNewPinNotification(pinDTO);
+            log.info("✅ Notification sent for new pin {} in grid {}",
+                    pinDTO.getPinId(), pinDTO.getGridId());
+        } catch (Exception e) {
+            log.error("❌ Failed to send notification for pin {}: {}",
+                    pinDTO.getPinId(), e.getMessage());
+        }
+
         return dtoServices.convertToPinDTO(savedPin);
     }
 
