@@ -68,7 +68,7 @@ public class CronJobController {
         }
     }
 
-    @GetMapping("/kindmap")
+    @GetMapping("/")
     public ResponseEntity<String> hello(){
         return ResponseEntity.ok("Welcome to Kindmap");
     }

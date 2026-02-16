@@ -35,7 +35,7 @@ public class UserController {
     }
 
 
-    @PostMapping
+    @PostMapping("/add")
     public ResponseEntity<UserDTO> addUser(@RequestBody UserDTO user) {
         if (userService.getUser(user.getUserId()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
@@ -44,7 +44,7 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PostMapping("/{userId}/name")
+    @PutMapping("/{userId}/changename")
     public ResponseEntity<UserDTO> changeName(
             @PathVariable String userId,
             @RequestParam String newName) {

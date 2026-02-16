@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,6 +30,9 @@ public class PinService {
 
     @Autowired
     private FCMService fcmService;
+
+    @Autowired
+    private PinDeletionScheduler pinDeletionScheduler;
 
     private static final Logger log = LoggerFactory.getLogger(PinService.class);
 
@@ -67,19 +71,27 @@ public class PinService {
 //        return pinRepo.findById(pinId).orElse(null);
 //    }
 
+    @Transactional
     public PinDTO addPin(PinDTO pinDTO) {
+        if (pinRepo.existsById(pinDTO.getPinId())) {
+            log.warn("⚠️ Pin with ID {} already exists! Cannot create duplicate.", pinDTO.getPinId());
+            throw new RuntimeException("Pin with ID " + pinDTO.getPinId() + " already exists");
+        }
+
         if(pinDTO.getDetails() == null || pinDTO.getDetails().isEmpty())
             pinDTO.setDetails("(none)");
         if(pinDTO.getNote() == null || pinDTO.getNote().isEmpty())
             pinDTO.setNote("(none)");
 
         String gridId = pinDTO.getGridId();
-        Grid grid = gridRepo.findById(gridId)
-                        .orElseGet(() ->{
-                            Grid newGrid = new Grid();
-                            newGrid.setGridId(gridId);
-                            return gridRepo.save(newGrid);
-                        });
+        Grid grid = gridRepo.findByIdWithPins(gridId)
+                .orElseGet(() -> {
+                    Grid newGrid = new Grid();
+                    newGrid.setGridId(gridId);
+                    newGrid.setPins(new ArrayList<>());
+                    newGrid.setUsers(new ArrayList<>());
+                    return gridRepo.save(newGrid);
+                });
         Pin pin = new Pin();
         pin.setPinId(pinDTO.getPinId());
         pin.setGrid(grid);
@@ -95,7 +107,13 @@ public class PinService {
 //        System.out.println("Image base64 length: " + pin.getImageBase64().length());
 
         Pin savedPin = pinRepo.save(pin);
+        if (grid.getPins() == null) {
+            grid.setPins(new ArrayList<>());
+        }
         grid.getPins().add(savedPin);
+        gridRepo.save(grid);
+
+        pinDeletionScheduler.schedulePinDeletion(savedPin.getPinId(), savedPin.getCreatedAt(),savedPin.getTimer());
 
         try {
             fcmService.sendNewPinNotification(pinDTO);
@@ -105,7 +123,6 @@ public class PinService {
             log.error("❌ Failed to send notification for pin {}: {}",
                     pinDTO.getPinId(), e.getMessage());
         }
-
         return dtoServices.convertToPinDTO(savedPin);
     }
 
